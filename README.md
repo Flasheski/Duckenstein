@@ -1,5 +1,7 @@
 # Wolf3D - Epitech Project
 
+## Contributors : [Flasheski](https://github.com/Flasheski) / [Whisp59](https://github.com/Whisp59) / [Reyshyram](https://github.com/Reyshyram)
+
 * Ce projet consiste en la création d'un jeu de tir à la première personne (FPS) en 3D, utilisant la technique de **raycasting**, inspiré du classique Wolfenstein 3D.
 
 ## 🚀 Fonctionnalités
