@@ -24,6 +24,7 @@ struct ui_button {
     sfVector2f scale;
     unsigned int char_size;
     bool hovered;
+    bool pressed;
     void (*on_click)(void *);
     void *data;
 };

@@ -5,6 +5,8 @@
 ** Update the game
 */
 
+#include <SFML/Audio/Sound.h>
+#include <SFML/Audio/SoundStatus.h>
 #include <SFML/Graphics/RenderWindow.h>
 #include <SFML/System/Vector2.h>
 #include <SFML/Window/Keyboard.h>
@@ -12,9 +14,11 @@
 
 #include "graphics/engine.h"
 #include "graphics/maths.h"
+#include "graphics/sprite_anim.h"
 
 #include "game.h"
-#include "wolf3d.h"
+#include "menu.h"
+#include "weapons.h"
 
 #ifdef DEBUG
 
@@ -86,7 +90,7 @@ static void move_player(game_data_t *d, float dx, float dy)
 
 static void handle_camera_movement(game_data_t *d, engine_t *engine)
 {
-    sfVector2i center = {WIN_WIDTH / 2, WIN_HEIGHT / 2};
+    sfVector2i center = {engine->window_size.x / 2, engine->window_size.y / 2};
     sfVector2i mouse_pos = sfMouse_getPositionRenderWindow(engine->window);
     int mouse_dx = mouse_pos.x - center.x;
     int mouse_dy = mouse_pos.y - center.y;
@@ -99,10 +103,10 @@ static void handle_camera_movement(game_data_t *d, engine_t *engine)
         rotate_camera(d, -(float) mouse_dx * MOUSE_X_SENSITIVITY * mult);
     if (mouse_dy != 0)
         d->camera_height -= (float) mouse_dy * MOUSE_Y_SENSITIVITY * mult;
-    if (d->camera_height > (float) WIN_HEIGHT / 2 - 1)
-        d->camera_height = (float) WIN_HEIGHT / 2 - 1;
-    if (d->camera_height < -(float) WIN_HEIGHT / 2 + 1)
-        d->camera_height = -(float) WIN_HEIGHT / 2 + 1;
+    if (d->camera_height > (float) engine->window_size.y / 2 - 1)
+        d->camera_height = (float) engine->window_size.y / 2 - 1;
+    if (d->camera_height < -(float) engine->window_size.y / 2 + 1)
+        d->camera_height = -(float) engine->window_size.y / 2 + 1;
 }
 
 static sfVector2f get_normalized_movement(float dt, sfVector2f *dir)
@@ -117,11 +121,12 @@ static sfVector2f get_normalized_movement(float dt, sfVector2f *dir)
     return *dir;
 }
 
-static sfVector2f get_player_movement(float dt, game_data_t *d)
+static sfVector2f get_player_movement(engine_t *engine, float dt,
+    game_data_t *d)
 {
     sfVector2f dir = {0};
 
-    if (sfKeyboard_isKeyPressed(sfKeyZ)) {
+    if (sfKeyboard_isKeyPressed(engine->is_fr ? sfKeyZ : sfKeyW)) {
         dir.x += d->player.view_dir.x;
         dir.y += d->player.view_dir.y;
     }
@@ -129,7 +134,7 @@ static sfVector2f get_player_movement(float dt, game_data_t *d)
         dir.x -= d->player.view_dir.x;
         dir.y -= d->player.view_dir.y;
     }
-    if (sfKeyboard_isKeyPressed(sfKeyQ)) {
+    if (sfKeyboard_isKeyPressed(engine->is_fr ? sfKeyQ : sfKeyA)) {
         dir.x += -d->player.view_dir.y;
         dir.y += d->player.view_dir.x;
     }
@@ -155,6 +160,19 @@ static void handle_speed_modifiers(game_data_t *d, float *speed_mult)
         d->target_fov = CROUCH_FOV;
     } else
         d->target_fov = DEFAULT_FOV;
+    if (d->player.is_zooming)
+        *speed_mult /= 2;
+}
+
+static void handle_player_movement(engine_t *engine, game_data_t *d,
+    float speed_mult, sfVector2f *movement)
+{
+    if (!engine->sounds_enabled) {
+        sfSound_pause(d->player.steps);
+    } else if (sfSound_getStatus(d->player.steps) != sfPlaying) {
+        sfSound_play(d->player.steps);
+    }
+    move_player(d, movement->x * speed_mult, movement->y * speed_mult);
 }
 
 static void handle_player(engine_t *engine, game_data_t *d)
@@ -166,9 +184,23 @@ static void handle_player(engine_t *engine, game_data_t *d)
     handle_camera_movement(d, engine);
     d->camera_plane.x = d->camera_plane_base.x * d->fov;
     d->camera_plane.y = d->camera_plane_base.y * d->fov;
-    movement = get_player_movement(engine->dt, d);
-    if (movement.x != 0 || movement.y != 0)
-        move_player(d, movement.x * speed_mult, movement.y * speed_mult);
+    movement = get_player_movement(engine, engine->dt, d);
+    if (movement.x != 0 || movement.y != 0) {
+        handle_player_movement(engine, d, speed_mult, &movement);
+    } else {
+        sfSound_pause(d->player.steps);
+    }
+}
+
+static void game_running_update(engine_t *engine, game_data_t *d)
+{
+    handle_player(engine, d);
+    update_weapons(engine, d);
+    update_enemies(engine, d);
+    update_medikits(d);
+    update_keys(engine, d);
+    update_doors(d);
+    d->hud->timer_time += engine->dt;
 }
 
 void game_update(engine_t *engine)
@@ -180,8 +212,17 @@ void game_update(engine_t *engine)
 #ifdef DEBUG
     print_framerate();
 #endif
-    handle_player(engine, d);
+    if (d->is_paused) {
+        pause_update(engine, d);
+        return;
+    }
+    if (!d->game_over && !d->game_won) {
+        game_running_update(engine, d);
+    } else if (d->game_over || d->game_won) {
+        display_ending_screen(engine);
+    }
     d->fov = interpolatef(d->fov,
         d->target_fov * (d->player.is_zooming ? 1 / ZOOM_FACTOR : 1),
         engine->dt * 10);
+    sprite_anim_update(d->hud->cursor, engine->dt);
 }

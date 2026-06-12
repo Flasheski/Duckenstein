@@ -15,22 +15,28 @@
 #include "graphics/engine.h"
 
 #include "game.h"
+#include "menu.h"
 #include "wolf3d.h"
 
 static void run_game(engine_t *engine)
 {
-    scene_t *game_scene = game_create();
+    scene_t *menu_scene = menu_create();
 
-    if (!game_scene) {
-        fprintf(stderr, "Error: failed to create the game scene\n");
+    if (!menu_scene) {
+        fprintf(stderr, "Error: failed to create the menu scene\n");
         return;
     }
     srand(time(nullptr));
-    sfRenderWindow_setMouseCursorGrabbed(engine->window, true);
 #ifndef DEBUG
     sfRenderWindow_setFramerateLimit(engine->window, FPS);
 #endif
-    engine_set_scene(engine, game_scene, false);
+    engine->is_fr = true;
+    engine->is_fullscreen = false;
+    engine->sounds_enabled = true;
+    engine->music_enabled = true;
+    engine->difficulty = GAME_DIFFICULTY_EASY;
+    engine_set_scene(engine, menu_scene, false);
+    settings_set_music_enabled(engine, engine->music_enabled);
     engine_main_loop(engine);
     engine_destroy(engine);
 }

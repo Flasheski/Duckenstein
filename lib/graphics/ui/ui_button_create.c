@@ -38,5 +38,6 @@ ui_button_t *ui_button_create(engine_t *engine, const char *texture_path,
     sfText_setFont(button->text, engine->default_font);
     button->scale = (sfVector2f) {1, 1};
     button->char_size = 16;
+    button->pressed = false;
     return button;
 }

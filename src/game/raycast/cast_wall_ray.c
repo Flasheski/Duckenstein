@@ -16,9 +16,10 @@
 #include "wolf3d.h"
 
 // clang-format off
-static void init_raycast_struct(game_data_t *d, size_t x, ray_t *ray)
+static void init_raycast_struct(engine_t *engine,
+    game_data_t *d, size_t x, ray_t *ray)
 {
-    float camera_plane_x = 2.F * (float) x / (float) WIN_WIDTH - 1;
+    float camera_plane_x = 2.F * (float) x / (float) engine->window_size.x - 1;
     sfVector2f ray_dir = {d->player.view_dir.x
         + d->camera_plane.x * camera_plane_x,
         d->player.view_dir.y + d->camera_plane.y * camera_plane_x};
@@ -71,7 +72,9 @@ static void get_ray_perpendicular_dist(ray_t *ray, game_data_t *d)
             ray->map_tile.y += ray->step_dir.y;
             ray->was_x_side_hit = false;
         }
-        if (d->map[ray->map_tile.x][ray->map_tile.y] > 0)
+        if (ray->map_tile.x < 0 || ray->map_tile.x >= MAP_WIDTH
+            || ray->map_tile.y < 0 || ray->map_tile.y >= MAP_HEIGHT
+            || d->map[ray->map_tile.x][ray->map_tile.y] > 0)
             ray->was_wall_hit = true;
     }
     if (ray->was_x_side_hit)
@@ -81,19 +84,34 @@ static void get_ray_perpendicular_dist(ray_t *ray, game_data_t *d)
 }
 
 // clang-format off
-static void get_wall_info(ray_t *ray, game_data_t *d)
+static float get_flashlight_mult(game_data_t *d, ray_t *ray)
+{
+    float ray_len = hypotf(ray->ray_dir.x, ray->ray_dir.y);
+    float view_alignement = fmaxf((ray->ray_dir.x * d->player.view_dir.x
+            + ray->ray_dir.y * d->player.view_dir.y)
+        / ray_len, 0);
+    float distance = ray->perpendicular_dist;
+    float fade = 1.0F / (1.0F
+        + (distance * distance) / (FLASHLIGHT_RANGE * FLASHLIGHT_RANGE));
+    float light = FLASHLIGHT_MIN_LIGHT
+        + (1.0F - FLASHLIGHT_MIN_LIGHT) * view_alignement * fade;
+
+    return fminf(light, 1);
+}
+
+static void get_wall_info(engine_t *engine, ray_t *ray, game_data_t *d)
 {
     ray->camera_plane_length = hypotf(d->camera_plane.x, d->camera_plane.y);
-    ray->line_height = (int) ((WALL_HEIGHT_MULT * WIN_WIDTH)
+    ray->line_height = (int) ((WALL_HEIGHT_MULT * engine->window_size.x)
         / (2 * ray->camera_plane_length * ray->perpendicular_dist));
-    ray->horizon_y = WIN_HEIGHT / 2 + (int) d->camera_height;
+    ray->horizon_y = engine->window_size.y / 2 + (int) d->camera_height;
     ray->draw_start_y = -ray->line_height / 2 + ray->horizon_y;
     ray->line_start = ray->draw_start_y;
     if (ray->line_start < 0)
         ray->line_start = 0;
     ray->line_end = ray->line_height / 2 + ray->horizon_y;
-    if (ray->line_end > WIN_HEIGHT)
-        ray->line_end = WIN_HEIGHT;
+    if (ray->line_end > (int)engine->window_size.y)
+        ray->line_end = engine->window_size.y;
     ray->wall_hit_coord =
         (ray->was_x_side_hit ? d->player.pos.y : d->player.pos.x)
         + ray->perpendicular_dist
@@ -103,6 +121,8 @@ static void get_wall_info(ray_t *ray, game_data_t *d)
 
 static void get_ray_texture(ray_t *ray, game_data_t *d)
 {
+    float flashlight_mult = 1;
+
     ray->wall_texture_ind = d->map[ray->map_tile.x][ray->map_tile.y] - 1;
     ray->texture_x = (float) ray->wall_texture_ind * (float) WALL_TEXTURE_WIDTH
         + ray->wall_hit_coord * (float) WALL_TEXTURE_WIDTH;
@@ -116,6 +136,10 @@ static void get_ray_texture(ray_t *ray, game_data_t *d)
         ray->tint.g /= 2;
         ray->tint.b /= 2;
     }
+    flashlight_mult = ENABLE_FLASHLIGHT ? get_flashlight_mult(d, ray) : 1;
+    ray->tint.r = (sfUint8) ((float) ray->tint.r * flashlight_mult);
+    ray->tint.g = (sfUint8) ((float) ray->tint.g * flashlight_mult);
+    ray->tint.b = (sfUint8) ((float) ray->tint.b * flashlight_mult);
 }
 // clang-format on
 
@@ -129,14 +153,16 @@ static void append_to_vertices(ray_t *ray, game_data_t *d, size_t x)
             {ray->texture_x, ray->texture_y_bottom}});
 }
 
-void cast_wall_ray(game_data_t *d, size_t x)
+void cast_wall_ray(engine_t *engine, game_data_t *d, size_t x)
 {
     ray_t ray = {0};
 
-    init_raycast_struct(d, x, &ray);
+    init_raycast_struct(engine, d, x, &ray);
     get_ray_step_dir(&ray, d);
     get_ray_perpendicular_dist(&ray, d);
-    get_wall_info(&ray, d);
+    if (d->depth_buffer)
+        d->depth_buffer[x] = ray.perpendicular_dist;
+    get_wall_info(engine, &ray, d);
     get_ray_texture(&ray, d);
     append_to_vertices(&ray, d, x);
 }

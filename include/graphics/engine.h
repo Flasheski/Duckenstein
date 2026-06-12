@@ -26,7 +26,7 @@
     #define ASSETS_PATH "assets/"
     #define FONTS_PATH ASSETS_PATH "fonts/"
     #define SPRITES_PATH ASSETS_PATH "sprites/"
-    #define MUSICS_PATHS ASSETS_PATH "musics/"
+    #define MUSICS_PATH ASSETS_PATH "musics/"
     #define SHADERS_PATH ASSETS_PATH "shaders/"
     #define SFXS_PATHS ASSETS_PATH "sfxs/"
 
@@ -43,6 +43,13 @@
 typedef struct engine engine_t;
 typedef struct scene scene_t;
 
+typedef enum {
+    GAME_DIFFICULTY_EASY,
+    GAME_DIFFICULTY_MEDIUM,
+    GAME_DIFFICULTY_HARD,
+    GAME_DIFFICULTY_COUNT
+} game_difficulty_t;
+
 enum transition_state {
     TRANSITION_NONE,
     TRANSITION_OUT,
@@ -53,6 +60,12 @@ struct engine {
     sfRenderWindow *window;
     sfCursor *cursor;
     sfVector2u window_size;
+    sfVector2u windowed_size;
+    bool is_fullscreen;
+    bool sounds_enabled;
+    bool music_enabled;
+    game_difficulty_t difficulty;
+    bool is_fr;
     sfClock *clock;
     float dt;
     sfFont *default_font;
@@ -62,11 +75,13 @@ struct engine {
     sfRectangleShape *transition_rect;
     float transition_alpha;
     enum transition_state transition_state;
+    sfClock *end_clock;
 };
 
 struct scene {
     void (*on_enter)(engine_t *engine);
     void (*on_exit)(engine_t *engine);
+    void (*on_resize)(engine_t *engine);
     void (*update)(engine_t *engine);
     void (*draw)(engine_t *engine);
     void (*handle_events)(engine_t *engine, sfEvent *event);

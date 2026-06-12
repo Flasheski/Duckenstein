@@ -26,7 +26,19 @@ int print_help(void)
     printd("PROJECT\n    Duckenstein\n\n", W_FAST);
     printd("USAGE\n    ./wolf3d [-h] [-lore]\n\n", W_FAST);
     printd("DESCRIPTION\n    -h display help text\n", W_FAST);
-    printd("    -lore display game lore\n", W_FAST);
+    printd("    -lore display game lore\n\n", W_FAST);
+    printd("CONTROLS\n", W_FAST);
+    printd("    - ZQSD/WASD to move (see settings)\n", W_FAST);
+    printd("    - Shift to sprint, CTRL to crouch\n", W_FAST);
+    printd("    - Move mouse to aim\n", W_FAST);
+    printd("    - Left Click shoot, Right Click aim\n", W_FAST);
+    printd("    - R to reload\n", W_FAST);
+    printd("    - TAB to switch weapons\n", W_FAST);
+    printd("    - ESC to open pause menu / go back to previous menus\n\n",
+        W_FAST);
+    printd("GOAL\n", W_FAST);
+    printd("    - Find keys on dead enemies to open doors\n", W_FAST);
+    printd("    - Go to the boss and beat him to win\n", W_FAST);
     return SUCCESS;
 }
 

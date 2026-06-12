@@ -23,6 +23,8 @@ void engine_destroy(engine_t *engine)
     free(engine->scene);
     if (engine->clock)
         sfClock_destroy(engine->clock);
+    if (engine->end_clock)
+        sfClock_destroy(engine->end_clock);
     if (engine->window)
         sfRenderWindow_destroy(engine->window);
     if (engine->cursor)

@@ -14,6 +14,7 @@
     #include <SFML/System/Vector2.h>
     #include <math.h>
 
+    #define M_PI 3.14159265358979323846
     #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 // clang-format on
 
@@ -82,6 +83,15 @@ static inline bool rect_contains(sfFloatRect *rect, sfVector2f *pos)
 {
     return (pos->x >= rect->left && pos->x < rect->left + rect->width
         && pos->y >= rect->top && pos->y < rect->top + rect->height);
+}
+
+static inline float restrain_value(float value, float min, float max)
+{
+    if (value < min)
+        return min;
+    if (value > max)
+        return max;
+    return value;
 }
 
 #endif /* !GRAPHICS_MATHS_H */
